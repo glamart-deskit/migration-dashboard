@@ -137,7 +137,7 @@ const EDIT_PIN = 'D2X2025';
 const STORAGE_KEY = 'migration_phases_v1';
 const PHASES_DEFAULT = [
   { id:1, title:"Déploiement NinjaOne", duree:"4-10j (glissant)", poids:10, pct:59, statut:"inprogress", detail:"53/90 PC déployés — en parallèle des autres phases", parallel:true },
-  { id:2, title:"Sécurisation D2X — MFA & Policies", duree:"3-5j", poids:15, pct:99, statut:"inprogress", detail:"128/129 comptes — en attente retour DG pour powerplatform@oned2x.com", parallel:false },
+  { id:2, title:"Sécurisation D2X — MFA & Policies", duree:"3-5j", poids:15, pct:44, statut:"inprogress", detail:"59/133 comptes AUTH OK", parallel:false },
   { id:3, title:"Audit & préparation identités TS", duree:"2-3j", poids:15, pct:10, statut:"todo", detail:"Inventaire effectué — 80-90 comptes à créer sur D2X + nettoyage B2B", parallel:false },
   { id:4, title:"Migration Exchange / OneDrive / MFA TS", duree:"2-3j", poids:20, pct:5, statut:"todo", detail:"Export PST Teams initié — TAP à préparer pour re-enrôlement MFA", parallel:false },
   { id:5, title:"Migration SharePoint partagés", duree:"5-6j", poids:25, pct:8, statut:"inprogress", detail:"Test site Excellence en cours — 240 sites / 3 783 Go — script PnP validé", parallel:false },
