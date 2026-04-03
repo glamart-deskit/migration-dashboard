@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Migration Timspirit → D2X</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a18; padding: 2rem; }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+  .kpi { background: #fff; border-radius: 8px; padding: 1rem; border: 0.5px solid #e0ded6; }
+  .kpi-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .kpi-value { font-size: 22px; font-weight: 500; }
+  .kpi-sub { font-size: 11px; color: #888; margin-top: 3px; }
+  .global-wrap { background: #fff; border-radius: 8px; padding: 1rem 1.25rem; border: 0.5px solid #e0ded6; margin-bottom: 1.5rem; }
+  .section-title { font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+  .bar-bg { background: #f1efe8; border-radius: 6px; height: 12px; overflow: hidden; margin: 6px 0 3px; }
+  .bar-fill { height: 12px; border-radius: 6px; transition: width 0.4s; }
+  .bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: #888; }
+  .phase-card { background: #fff; border: 0.5px solid #e0ded6; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 8px; }
+  .phase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .phase-num { width: 28px; height: 28px; border-radius: 50%; background: #f1efe8; color: #888; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; flex-shrink: 0; }
+  .phase-title { font-size: 14px; font-weight: 500; flex: 1; }
+  .phase-pct { font-size: 13px; font-weight: 500; }
+  .badge { font-size: 11px; padding: 2px 10px; border-radius: 20px; }
+  .badge-todo { background: #e6f1fb; color: #185fa5; }
+  .badge-inprogress { background: #faeeda; color: #854f0b; }
+  .badge-done { background: #eaf3de; color: #3b6d11; }
+  .badge-parallel { background: #eeedfe; color: #3c3489; }
+  .phase-meta { font-size: 11px; color: #888; margin-bottom: 6px; display: flex; gap: 12px; }
+  .pbar-bg { background: #f1efe8; border-radius: 3px; height: 6px; overflow: hidden; margin-bottom: 4px; }
+  .pbar-fill { height: 6px; border-radius: 3px; }
+  .phase-detail { font-size: 11px; color: #888; margin-top: 4px; }
+  .edit-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .edit-row label { font-size: 11px; color: #888; white-space: nowrap; }
+  .edit-row input[type=range] { flex: 1; accent-color: #1d9e75; }
+  .edit-row span { font-size: 11px; font-weight: 500; min-width: 32px; }
+  .status-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .sbtn { font-size: 11px; padding: 2px 10px; border-radius: 20px; border: 0.5px solid #ccc; background: #fff; cursor: pointer; color: #888; }
+  .sbtn.active { font-weight: 500; }
+  .sbtn.active-todo { background: #e6f1fb; color: #185fa5; border-color: #378add; }
+  .sbtn.active-inprogress { background: #faeeda; color: #854f0b; border-color: #ef9f27; }
+  .sbtn.active-done { background: #eaf3de; color: #3b6d11; border-color: #639922; }
+  .sbtn.active-parallel { background: #eeedfe; color: #3c3489; border-color: #7f77dd; }
+  .save-area { text-align: center; margin-top: 1.25rem; }
+  .save-btn { background: #1d9e75; color: #fff; border: none; border-radius: 8px; padding: 10px 32px; font-size: 13px; cursor: pointer; }
+  .save-btn:hover { background: #0f6e56; }
+  .saved-msg { font-size: 12px; color: #1d9e75; margin-top: 8px; display: none; }
+  .last-update { font-size: 11px; color: #888; margin-top: 4px; }
+  @media (max-width: 600px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } body { padding: 1rem; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Dashboard Migration — Timspirit → D2X</h1>
+  <p class="subtitle" id="lastUpdateLabel">Dernière mise à jour : —</p>
+
+  <div class="kpi-grid">
+    <div class="kpi"><p class="kpi-label">Avancement global</p><p class="kpi-value" id="globalPct" style="color:#1d9e75;">—</p><p class="kpi-sub">pondéré par phase</p></div>
+    <div class="kpi"><p class="kpi-label">Phases terminées</p><p class="kpi-value" id="doneCount">—</p><p class="kpi-sub">sur 7 phases</p></div>
+    <div class="kpi"><p class="kpi-label">En cours</p><p class="kpi-value" id="inProgressCount">—</p><p class="kpi-sub">phases actives</p></div>
+    <div class="kpi"><p class="kpi-label">Durée totale estimée</p><p class="kpi-value" style="font-size:15px;padding-top:6px;">18-35j</p><p class="kpi-sub">tâches parallèles incluses</p></div>
+  </div>
+
+  <div class="global-wrap">
+    <p class="section-title">Progression globale du projet</p>
+    <div class="bar-bg"><div class="bar-fill" id="globalBar" style="width:0%;background:#1d9e75;"></div></div>
+    <div class="bar-labels"><span>0%</span><span id="globalPctLabel" style="font-weight:500;color:#1d9e75;">—</span><span>100%</span></div>
+  </div>
+
+  <p class="section-title">Détail par phase</p>
+  <div id="phasesContainer"></div>
+
+  <div class="save-area">
+    <button class="save-btn" onclick="saveData()">Sauvegarder les modifications</button>
+    <p class="saved-msg" id="savedMsg">Modifications sauvegardées !</p>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'migration_phases_v1';
+const PHASES_DEFAULT = [
+  { id:1, title:"Déploiement NinjaOne", duree:"4-10j (glissant)", poids:10, pct:59, statut:"inprogress", detail:"53/90 PC déployés — en parallèle des autres phases", parallel:true },
+  { id:2, title:"Sécurisation D2X — MFA & Policies", duree:"3-5j", poids:15, pct:99, statut:"inprogress", detail:"128/129 comptes — en attente retour DG pour powerplatform@oned2x.com", parallel:false },
+  { id:3, title:"Audit & préparation identités TS", duree:"2-3j", poids:15, pct:10, statut:"todo", detail:"Inventaire effectué — 80-90 comptes à créer sur D2X + nettoyage B2B", parallel:false },
+  { id:4, title:"Migration Exchange / OneDrive / MFA TS", duree:"2-3j", poids:20, pct:5, statut:"todo", detail:"Export PST Teams initié — TAP à préparer pour re-enrôlement MFA", parallel:false },
+  { id:5, title:"Migration SharePoint partagés", duree:"5-6j", poids:25, pct:8, statut:"inprogress", detail:"Test site Excellence en cours — 240 sites / 3 783 Go — script PnP validé", parallel:false },
+  { id:6, title:"Re-enrôlement TS / Enrôlement D2X Intune", duree:"4-5j", poids:10, pct:0, statut:"todo", detail:"120 postes — dépend phase 3 — parallélisable avec phase 5", parallel:true },
+  { id:7, title:"Applications SSO / Azure AD", duree:"2-5j", poids:5, pct:0, statut:"todo", detail:"Non bloquant — démarrable dès phase 3", parallel:true }
+];
+
+const BAR_COLORS = { todo:"#378add", inprogress:"#ef9f27", done:"#1d9e75", parallel:"#7f77dd" };
+const STATUS_LABELS = { todo:"À venir", inprogress:"En cours", done:"Terminé", parallel:"Parallèle" };
+
+let phases = [];
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    phases = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(PHASES_DEFAULT));
+  } catch(e) {
+    phases = JSON.parse(JSON.stringify(PHASES_DEFAULT));
+  }
+  render();
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(phases));
+  const now = new Date();
+  const label = now.toLocaleDateString('fr-FR') + ' à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('lastUpdateLabel').textContent = 'Dernière mise à jour : ' + label;
+  const msg = document.getElementById('savedMsg');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 2500);
+}
+
+function updateGlobal() {
+  const totalPoids = phases.reduce((s,p) => s + p.poids, 0);
+  const totalPondere = phases.reduce((s,p) => s + (p.pct * p.poids / 100), 0);
+  const global = Math.round(totalPondere / totalPoids * 100);
+  document.getElementById('globalPct').textContent = global + '%';
+  document.getElementById('globalPctLabel').textContent = global + '% accompli';
+  document.getElementById('globalBar').style.width = global + '%';
+  document.getElementById('doneCount').textContent = phases.filter(p => p.pct === 100).length + ' / 7';
+  document.getElementById('inProgressCount').textContent = phases.filter(p => p.statut === 'inprogress').length;
+}
+
+function updatePct(idx, val) {
+  phases[idx].pct = parseInt(val);
+  document.getElementById('pct-display-' + idx).textContent = val + '%';
+  document.getElementById('pct-val-' + idx).textContent = val + '%';
+  document.getElementById('pbar-' + idx).style.width = val + '%';
+  if (parseInt(val) === 100) { phases[idx].statut = 'done'; renderCard(idx); }
+  updateGlobal();
+}
+
+function updateStatus(idx, status) {
+  phases[idx].statut = status;
+  if (status === 'done') phases[idx].pct = 100;
+  renderCard(idx);
+  updateGlobal();
+}
+
+function renderCard(idx) {
+  const p = phases[idx];
+  const bc = BAR_COLORS[p.statut] || '#378add';
+  const card = document.getElementById('card-' + idx);
+  if (!card) return;
+  card.innerHTML = buildCardHTML(p, idx, bc);
+}
+
+function buildCardHTML(p, idx, bc) {
+  return `
+    <div class="phase-header">
+      <div class="phase-num">${p.id}</div>
+      <div class="phase-title">${p.title}</div>
+      <span class="badge badge-${p.statut}">${STATUS_LABELS[p.statut]}</span>
+      <div class="phase-pct" id="pct-display-${idx}" style="color:${bc};">${p.pct}%</div>
+    </div>
+    <div class="phase-meta">
+      <span>Durée : ${p.duree}</span>
+      <span>Poids : ${p.poids}%</span>
+      ${p.parallel ? '<span style="color:#7f77dd;">Parallélisable</span>' : ''}
+    </div>
+    <div class="pbar-bg"><div class="pbar-fill" id="pbar-${idx}" style="width:${p.pct}%;background:${bc};"></div></div>
+    <p class="phase-detail">${p.detail}</p>
+    <div class="edit-row">
+      <label>Avancement :</label>
+      <input type="range" min="0" max="100" step="5" value="${p.pct}" oninput="updatePct(${idx}, this.value)">
+      <span id="pct-val-${idx}" style="color:${bc};">${p.pct}%</span>
+    </div>
+    <div class="status-row">
+      ${['todo','inprogress','done','parallel'].map(s =>
+        `<button class="sbtn ${p.statut===s?'active active-'+s:''}" onclick="updateStatus(${idx},'${s}')">${STATUS_LABELS[s]}</button>`
+      ).join('')}
+    </div>
+  `;
+}
+
+function render() {
+  updateGlobal();
+  const container = document.getElementById('phasesContainer');
+  container.innerHTML = '';
+  phases.forEach((p, idx) => {
+    const bc = BAR_COLORS[p.statut] || '#378add';
+    const card = document.createElement('div');
+    card.className = 'phase-card';
+    card.id = 'card-' + idx;
+    card.innerHTML = buildCardHTML(p, idx, bc);
+    container.appendChild(card);
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
