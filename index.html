@@ -50,13 +50,62 @@
   .save-btn:hover { background: #0f6e56; }
   .saved-msg { font-size: 12px; color: #1d9e75; margin-top: 8px; display: none; }
   .last-update { font-size: 11px; color: #888; margin-top: 4px; }
-  @media (max-width: 600px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } body { padding: 1rem; } }
+
+  /* ── Lock button ── */
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.5rem; }
+  .header-left { flex: 1; }
+  .lock-btn { background: none; border: 0.5px solid #e0ded6; border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; transition: all 0.2s; }
+  .lock-btn:hover { border-color: #aaa; color: #444; }
+  .lock-btn.unlocked { border-color: #1d9e75; color: #1d9e75; background: #f0faf6; }
+
+  /* ── PIN modal ── */
+  .pin-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; align-items: center; justify-content: center; }
+  .pin-overlay.visible { display: flex; }
+  .pin-box { background: #fff; border-radius: 12px; padding: 2rem; width: 280px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  .pin-box h2 { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .pin-box p { font-size: 12px; color: #888; margin-bottom: 1rem; }
+  .pin-input { width: 100%; border: 0.5px solid #ccc; border-radius: 8px; padding: 10px 12px; font-size: 16px; text-align: center; letter-spacing: 4px; outline: none; margin-bottom: 10px; }
+  .pin-input:focus { border-color: #1d9e75; }
+  .pin-input.error { border-color: #e05555; animation: shake 0.3s; }
+  .pin-error { font-size: 11px; color: #e05555; height: 16px; margin-bottom: 6px; }
+  .pin-submit { width: 100%; background: #1d9e75; color: #fff; border: none; border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
+  .pin-submit:hover { background: #0f6e56; }
+  .pin-cancel { display: block; margin-top: 8px; font-size: 11px; color: #aaa; cursor: pointer; background: none; border: none; }
+  .pin-cancel:hover { color: #555; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+  /* ── Locked state — hide edit controls ── */
+  body.locked .edit-controls { display: none; }
+  body.locked .save-area { display: none; }
+
+  @media (max-width: 600px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } body { padding: 1rem; } .header-row { flex-direction: column; gap: 8px; } }
 </style>
 </head>
-<body>
+<body class="locked">
+
+<!-- PIN modal -->
+<div class="pin-overlay" id="pinOverlay">
+  <div class="pin-box">
+    <h2>Mode édition</h2>
+    <p>Entrez le code pour modifier le tableau de bord</p>
+    <input class="pin-input" type="password" id="pinInput" maxlength="20" placeholder="••••••" autocomplete="off">
+    <div class="pin-error" id="pinError"></div>
+    <button class="pin-submit" onclick="checkPin()">Déverrouiller</button>
+    <button class="pin-cancel" onclick="closePin()">Annuler</button>
+  </div>
+</div>
+
 <div class="container">
-  <h1>Dashboard Migration — Timspirit → D2X</h1>
-  <p class="subtitle" id="lastUpdateLabel">Dernière mise à jour : —</p>
+  <div class="header-row">
+    <div class="header-left">
+      <h1>Dashboard Migration — Timspirit → D2X</h1>
+      <p class="subtitle" id="lastUpdateLabel">Dernière mise à jour : —</p>
+    </div>
+    <button class="lock-btn" id="lockBtn" onclick="toggleLock()">
+      <span id="lockIcon">🔒</span>
+      <span id="lockLabel">Lecture seule</span>
+    </button>
+  </div>
 
   <div class="kpi-grid">
     <div class="kpi"><p class="kpi-label">Avancement global</p><p class="kpi-value" id="globalPct" style="color:#1d9e75;">—</p><p class="kpi-sub">pondéré par phase</p></div>
@@ -74,13 +123,17 @@
   <p class="section-title">Détail par phase</p>
   <div id="phasesContainer"></div>
 
-  <div class="save-area">
+  <div class="save-area edit-controls">
     <button class="save-btn" onclick="saveData()">Sauvegarder les modifications</button>
     <p class="saved-msg" id="savedMsg">Modifications sauvegardées !</p>
   </div>
 </div>
 
 <script>
+// ── CHANGE PIN HERE ──────────────────────────────────────
+const EDIT_PIN = 'D2X2025';
+// ────────────────────────────────────────────────────────
+
 const STORAGE_KEY = 'migration_phases_v1';
 const PHASES_DEFAULT = [
   { id:1, title:"Déploiement NinjaOne", duree:"4-10j (glissant)", poids:10, pct:59, statut:"inprogress", detail:"53/90 PC déployés — en parallèle des autres phases", parallel:true },
@@ -96,6 +149,63 @@ const BAR_COLORS = { todo:"#378add", inprogress:"#ef9f27", done:"#1d9e75", paral
 const STATUS_LABELS = { todo:"À venir", inprogress:"En cours", done:"Terminé", parallel:"Parallèle" };
 
 let phases = [];
+let editMode = false;
+
+// ── PIN logic ────────────────────────────────────────────
+function toggleLock() {
+  if (editMode) {
+    setEditMode(false);
+  } else {
+    document.getElementById('pinOverlay').classList.add('visible');
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinError').textContent = '';
+    document.getElementById('pinInput').classList.remove('error');
+    setTimeout(() => document.getElementById('pinInput').focus(), 100);
+  }
+}
+
+function checkPin() {
+  const val = document.getElementById('pinInput').value;
+  if (val === EDIT_PIN) {
+    document.getElementById('pinOverlay').classList.remove('visible');
+    setEditMode(true);
+  } else {
+    const inp = document.getElementById('pinInput');
+    inp.classList.add('error');
+    document.getElementById('pinError').textContent = 'Code incorrect';
+    inp.value = '';
+    setTimeout(() => inp.classList.remove('error'), 400);
+  }
+}
+
+function closePin() {
+  document.getElementById('pinOverlay').classList.remove('visible');
+}
+
+document.getElementById('pinInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPin();
+  if (e.key === 'Escape') closePin();
+});
+
+document.getElementById('pinOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('pinOverlay')) closePin();
+});
+
+function setEditMode(on) {
+  editMode = on;
+  if (on) {
+    document.body.classList.remove('locked');
+    document.getElementById('lockBtn').classList.add('unlocked');
+    document.getElementById('lockIcon').textContent = '🔓';
+    document.getElementById('lockLabel').textContent = 'Mode édition';
+  } else {
+    document.body.classList.add('locked');
+    document.getElementById('lockBtn').classList.remove('unlocked');
+    document.getElementById('lockIcon').textContent = '🔒';
+    document.getElementById('lockLabel').textContent = 'Lecture seule';
+  }
+}
+// ────────────────────────────────────────────────────────
 
 function loadData() {
   try {
@@ -129,6 +239,7 @@ function updateGlobal() {
 }
 
 function updatePct(idx, val) {
+  if (!editMode) return;
   phases[idx].pct = parseInt(val);
   document.getElementById('pct-display-' + idx).textContent = val + '%';
   document.getElementById('pct-val-' + idx).textContent = val + '%';
@@ -138,6 +249,7 @@ function updatePct(idx, val) {
 }
 
 function updateStatus(idx, status) {
+  if (!editMode) return;
   phases[idx].statut = status;
   if (status === 'done') phases[idx].pct = 100;
   renderCard(idx);
@@ -167,15 +279,17 @@ function buildCardHTML(p, idx, bc) {
     </div>
     <div class="pbar-bg"><div class="pbar-fill" id="pbar-${idx}" style="width:${p.pct}%;background:${bc};"></div></div>
     <p class="phase-detail">${p.detail}</p>
-    <div class="edit-row">
-      <label>Avancement :</label>
-      <input type="range" min="0" max="100" step="5" value="${p.pct}" oninput="updatePct(${idx}, this.value)">
-      <span id="pct-val-${idx}" style="color:${bc};">${p.pct}%</span>
-    </div>
-    <div class="status-row">
-      ${['todo','inprogress','done','parallel'].map(s =>
-        `<button class="sbtn ${p.statut===s?'active active-'+s:''}" onclick="updateStatus(${idx},'${s}')">${STATUS_LABELS[s]}</button>`
-      ).join('')}
+    <div class="edit-controls">
+      <div class="edit-row">
+        <label>Avancement :</label>
+        <input type="range" min="0" max="100" step="5" value="${p.pct}" oninput="updatePct(${idx}, this.value)">
+        <span id="pct-val-${idx}" style="color:${bc};">${p.pct}%</span>
+      </div>
+      <div class="status-row">
+        ${['todo','inprogress','done','parallel'].map(s =>
+          `<button class="sbtn ${p.statut===s?'active active-'+s:''}" onclick="updateStatus(${idx},'${s}')">${STATUS_LABELS[s]}</button>`
+        ).join('')}
+      </div>
     </div>
   `;
 }
