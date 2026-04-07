@@ -137,10 +137,10 @@ const EDIT_PIN = 'D2X2025';
 const STORAGE_KEY = 'migration_phases_v1';
 const PHASES_DEFAULT = [
   { id:1, title:"Déploiement NinjaOne", duree:"4-10j (glissant)", poids:10, pct:59, statut:"inprogress", detail:"53/90 PC déployés — en parallèle des autres phases", parallel:true },
-  { id:2, title:"Sécurisation D2X — MFA & Policies", duree:"3-5j", poids:15, pct:44, statut:"inprogress", detail:"59/133 comptes AUTH OK", parallel:false },
+  { id:2, title:"Sécurisation D2X — MFA & Policies", duree:"3-5j", poids:15, pct:99, statut:"inprogress", detail:"121/122 comptes opérationnels (87 Auth + 34 SMS)", parallel:false },
   { id:3, title:"Audit & préparation identités TS", duree:"2-3j", poids:15, pct:10, statut:"todo", detail:"Inventaire effectué — 80-90 comptes à créer sur D2X + nettoyage B2B", parallel:false },
   { id:4, title:"Migration Exchange / OneDrive / MFA TS", duree:"2-3j", poids:20, pct:5, statut:"todo", detail:"Export PST Teams initié — TAP à préparer pour re-enrôlement MFA", parallel:false },
-  { id:5, title:"Migration SharePoint partagés", duree:"5-6j", poids:25, pct:8, statut:"inprogress", detail:"Test site Excellence en cours — 240 sites / 3 783 Go — script PnP validé", parallel:false },
+  { id:5, title:"Migration SharePoint partagés", duree:"5-6j", poids:25, pct:8, statut:"inprogress", detail:"104 sites à migrer — script PnP validé", parallel:false },
   { id:6, title:"Re-enrôlement TS / Enrôlement D2X Intune", duree:"4-5j", poids:10, pct:0, statut:"todo", detail:"120 postes — dépend phase 3 — parallélisable avec phase 5", parallel:true },
   { id:7, title:"Applications SSO / Azure AD", duree:"2-5j", poids:5, pct:0, statut:"todo", detail:"Non bloquant — démarrable dès phase 3", parallel:true }
 ];
