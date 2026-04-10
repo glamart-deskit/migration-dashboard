@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Technique — Migration TS → D2X</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #0d1117; color: #c9d1d9; padding: 1.5rem; font-size: 13px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 600; color: #f0f6fc; margin-bottom: 2px; }
+  .subtitle { font-size: 12px; color: #8b949e; margin-bottom: 1.2rem; }
+  .subtitle span { color: #58a6ff; }
+
+  /* KPI bar */
+  .kpi-bar { display: flex; gap: 8px; margin-bottom: 1.2rem; flex-wrap: wrap; }
+  .kpi { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 14px; flex: 1; min-width: 140px; }
+  .kpi-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi-val { font-size: 20px; font-weight: 600; color: #f0f6fc; margin-top: 2px; }
+  .kpi-val.green { color: #3fb950; }
+  .kpi-val.orange { color: #d29922; }
+  .kpi-val.red { color: #f85149; }
+  .kpi-sub { font-size: 10px; color: #8b949e; }
+
+  /* Phase sections */
+  .phase { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .phase-head { padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; user-select: none; }
+  .phase-head:hover { background: #1c2128; }
+  .phase-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+  .phase-num.done { background: #238636; color: #fff; }
+  .phase-num.inprogress { background: #9e6a03; color: #fff; }
+  .phase-num.todo { background: #30363d; color: #8b949e; }
+  .phase-num.blocked { background: #da3633; color: #fff; }
+  .phase-title { font-size: 14px; font-weight: 500; color: #f0f6fc; flex: 1; }
+  .phase-pct { font-size: 13px; font-weight: 600; min-width: 40px; text-align: right; }
+  .phase-pct.green { color: #3fb950; }
+  .phase-pct.orange { color: #d29922; }
+  .phase-pct.red { color: #f85149; }
+  .phase-arrow { color: #8b949e; font-size: 12px; transition: transform 0.2s; }
+  .phase.open .phase-arrow { transform: rotate(90deg); }
+  .pbar-bg { height: 4px; background: #21262d; border-radius: 2px; margin: 0 16px 0 52px; }
+  .pbar-fill { height: 4px; border-radius: 2px; transition: width 0.3s; }
+  .pbar-fill.green { background: #238636; }
+  .pbar-fill.orange { background: #9e6a03; }
+  .pbar-fill.red { background: #da3633; }
+
+  /* Phase body */
+  .phase-body { display: none; padding: 0 16px 14px 52px; }
+  .phase.open .phase-body { display: block; }
+
+  /* Operations table */
+  .ops-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .ops-table th { text-align: left; font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 8px; border-bottom: 1px solid #21262d; }
+  .ops-table td { padding: 6px 8px; border-bottom: 1px solid #21262d; font-size: 12px; vertical-align: top; }
+  .ops-table tr:last-child td { border-bottom: none; }
+  .ops-table tr:hover td { background: #1c2128; }
+
+  /* Status badges */
+  .st { font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 500; white-space: nowrap; }
+  .st-ok { background: #0d2818; color: #3fb950; border: 1px solid #238636; }
+  .st-run { background: #2a1e00; color: #d29922; border: 1px solid #9e6a03; }
+  .st-ko { background: #2d0a0a; color: #f85149; border: 1px solid #da3633; }
+  .st-wait { background: #0d1525; color: #58a6ff; border: 1px solid #1f6feb; }
+  .st-skip { background: #161b22; color: #8b949e; border: 1px solid #30363d; }
+
+  /* Difficulty tags */
+  .diff { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin: 1px 2px; display: inline-block; }
+  .diff-bug { background: #2d0a0a; color: #f85149; }
+  .diff-workaround { background: #2a1e00; color: #d29922; }
+  .diff-resolved { background: #0d2818; color: #3fb950; }
+  .diff-info { background: #0d1525; color: #58a6ff; }
+  .diff-blocked { background: #2d0a0a; color: #ff7b72; }
+
+  .note { font-size: 11px; color: #8b949e; line-height: 1.5; margin-top: 6px; padding: 8px 10px; background: #0d1117; border-radius: 6px; border-left: 3px solid #30363d; }
+  .note code { background: #21262d; padding: 1px 4px; border-radius: 3px; font-size: 11px; color: #79c0ff; }
+  .note strong { color: #c9d1d9; }
+
+  /* Scripts list */
+  .scripts { margin-top: 8px; }
+  .script-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 11px; }
+  .script-item .icon { color: #8b949e; }
+  .script-item .name { color: #79c0ff; font-family: monospace; }
+  .script-item .desc { color: #8b949e; }
+
+  .timestamp { font-size: 10px; color: #484f58; text-align: right; margin-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Dashboard Technique — Migration TS → D2X</h1>
+<div class="subtitle">Ingenieur : Gregory LAMART | Tenants : timcom.sharepoint.com → bizoffice13087.sharepoint.com | Cutover : <span>10/04/2026</span></div>
+
+<!-- KPIs -->
+<div class="kpi-bar">
+  <div class="kpi"><div class="kpi-label">Sites SP</div><div class="kpi-val">74</div><div class="kpi-sub">a migrer (36 Teams + 2 SP + 36 dossiers)</div></div>
+  <div class="kpi"><div class="kpi-label">Comptes D2X</div><div class="kpi-val green">Crees</div><div class="kpi-sub">Pierre — comptes prenom.nom@oned2x.com OK</div></div>
+  <div class="kpi"><div class="kpi-label">Exchange</div><div class="kpi-val orange">~348 Go</div><div class="kpi-sub">85 boites — CTMM prets, licence en propagation</div></div>
+  <div class="kpi"><div class="kpi-label">Stockage D2X</div><div class="kpi-val green">4,28 To</div><div class="kpi-sub">780 Go utilises / 2,28 To actuel + 2 To commandes (08/04)</div></div>
+  <div class="kpi"><div class="kpi-label">Sites D2X</div><div class="kpi-val green">43/44</div><div class="kpi-sub">crees (1 existait deja) — 09/04 17h</div></div>
+  <div class="kpi"><div class="kpi-label">Auth App-Only</div><div class="kpi-val green">OK</div><div class="kpi-sub">DisableCustomAppAuth=False — propagation confirmee 08/04</div></div>
+</div>
+
+<!-- PHASES -->
+<div id="phases"></div>
+
+<div class="timestamp" id="ts"></div>
+
+</div>
+
+<script>
+const PHASES = [
+  {
+    id: 1, title: "Deploiement NinjaOne", pct: 59, status: "inprogress",
+    ops: [
+      { op: "Deploiement agent NinjaOne sur postes", status: "run", detail: "53/90 PC" },
+      { op: "Configuration policies NinjaOne", status: "ok", detail: "Templates appliques" },
+      { op: "Monitoring & alerting", status: "ok", detail: "Alertes mail configurees" }
+    ],
+    difficulties: [],
+    notes: "Phase parallele — avance au rythme des connexions des postes au reseau.",
+    scripts: []
+  },
+  {
+    id: 2, title: "Securisation D2X — MFA & Policies", pct: 99, status: "inprogress",
+    ops: [
+      { op: "Audit MFA 3 niveaux (AUTH_OK / SMS_ONLY / NO_MFA)", status: "ok", detail: "87 Auth + 34 SMS + 1 NO_MFA" },
+      { op: "Generation TAP pour comptes NO_MFA", status: "ok", detail: "1 TAP genere (powerplatform@oned2x.com)" },
+      { op: "Revocation sessions NO_MFA", status: "ok", detail: "1 session revoquee" },
+      { op: "Campagne inscription Authenticator (34 SMS_ONLY)", status: "wait", detail: "A activer dans Entra > Campagne d'inscription" },
+      { op: "Conditional Access Policy — Require MFA", status: "ok", detail: "Policy existante en report-only sur D2X" },
+      { op: "Deploiement CA Vague 1 (5 policies)", status: "ok", detail: "08/04 — CA001/002 Block Legacy+Platform + CA101/102/103 Admins MFA/Session — REPORT-ONLY" },
+      { op: "Creation groupes securite CA", status: "ok", detail: "TS-Migres (dynamique City=TIMSPIRIT) + Admins-D2X + Consultants-Sans-Poste" },
+      { op: "Deploiement CA Vague 2 (internes + consultants)", status: "wait", detail: "CA201 MFA internes + CA301/302 consultants web-only — apres validation Vague 1" },
+      { op: "Passage policies en ENFORCED", status: "wait", detail: "Apres 24-48h de report-only sans anomalie" }
+    ],
+    difficulties: [
+      { tag: "bug", text: "Graph SDK v1.25 casse — Get-MgUser / Invoke-MgGraphRequest : 'Could not load type AzureIdentityAccessTokenProvider'" },
+      { tag: "resolved", text: "Contournement : script reecrit en REST pur (Device Code + Invoke-RestMethod), zero dependance SDK" },
+      { tag: "bug", text: "param() place apres Start-Transcript → 'term not recognized'" },
+      { tag: "resolved", text: "Fix : deplacer param() en 1ere instruction apres #Requires" },
+      { tag: "info", text: "Audit CA TS : 14 policies (modele de naming CA001-CA302) — reproduit sur D2X avec prefixe D2X" },
+      { tag: "info", text: "Policies CA D2X ciblent UNIQUEMENT le groupe TS-Migres (City=TIMSPIRIT), pas les comptes D2X natifs" },
+      { tag: "info", text: "30+ consultants sans poste : acces web only, CA separees prevues en Vague 2" }
+    ],
+    notes: "<strong>121/122 comptes MFA operationnels.</strong> <strong>Vague 1 CA deployee (08/04)</strong> : 5 policies en report-only + 3 groupes crees. Cible uniquement les futurs comptes ex-TS (City=TIMSPIRIT). Vague 2 a venir : separation internes/consultants.",
+    scripts: [
+      { name: "Force-MFA-TAP.ps1", desc: "PS7-D2X — Audit MFA + TAP + revocation (REST pur, sans SDK)" },
+      { name: "Deploy-CA-Vague1-D2X.ps1", desc: "PS7-D2X — Deploiement 5 policies CA + 3 groupes (report-only)" },
+      { name: "Audit-Policies-D2X.ps1", desc: "PS7-D2X — Audit complet CA/Intune/Auth Methods" },
+      { name: "MFA_Status.csv", desc: "Export 122 comptes avec statut AUTH_OK/SMS_ONLY/NO_MFA" },
+      { name: "TAP_a_distribuer.csv", desc: "TAP generes pour les NO_MFA" }
+    ]
+  },
+  {
+    id: 3, title: "Audit & preparation identites TS", pct: 80, status: "inprogress",
+    ops: [
+      { op: "Inventaire mapping users TS ↔ D2X", status: "ok", detail: "Mapping complet exporte" },
+      { op: "Identification comptes natifs D2X existants", status: "ok", detail: "Matching par UPN" },
+      { op: "Identification B2B guests a supprimer", status: "ok", detail: "B2B-Guests-Audit-D2X.csv exporte" },
+      { op: "Provisionnement comptes (prenom.nom@oned2x.com)", status: "ok", detail: "Pierre — comptes crees" },
+      { op: "Inventaire taille mailboxes TS", status: "ok", detail: "85 boites — 348 Go (scan 08/04)" },
+      { op: "Suppression B2B guests post-migration", status: "wait", detail: "Apres cutover" }
+    ],
+    difficulties: [
+      { tag: "info", text: "Strategie UPN : comptes crees en @oned2x.com avant cutover, @timspirit.fr en alias SMTP principal au cutover" },
+      { tag: "info", text: "Sites SP cibles : meme nom que source (PAS de prefixe TS-) — retour client 07/04" }
+    ],
+    notes: "<strong>Comptes D2X crees par Pierre.</strong> Inventaire mailboxes termine (85 boites, 348 Go). Reste : suppression B2B guests apres cutover.",
+    scripts: [
+      { name: "Inventaire-Mapping-Users.ps1", desc: "Indifferent — Mapping complet TS ↔ D2X + B2B guests" },
+      { name: "Inventaire-Mailboxes-TS.ps1", desc: "PS7-TS — Taille de chaque boite aux lettres" }
+    ]
+  },
+  {
+    id: 4, title: "Migration Exchange / OneDrive", pct: 35, status: "blocked",
+    ops: [
+      { op: "Configuration CTMM (app, OrgRelationship, endpoint)", status: "ok", detail: "Tous prerequis valides — screenshot 09/04" },
+      { op: "Endpoint MigrationEndpoint recree", status: "ok", detail: "CrossTenant-TS-to-D2X — ExchangeRemoteMove — secret OK" },
+      { op: "Licence Cross-Tenant User Migration (79 users)", status: "ok", detail: "79/79 assignees — service plans EXCHANGE+SP en Success" },
+      { op: "Licences Exchange retirees (MailUser obligatoire pour CTMM)", status: "ok", detail: "77 licences SPB/Essentials retirees — reassigner apres migration" },
+      { op: "Admin consent app source TS", status: "ok", detail: "Consent effectue + roles Exchange ajoutes au ServicePrincipal" },
+      { op: "Test pilote CTMM", status: "ko", detail: "13 tentatives — InboundMailboxMoveCapabilityMissing — toute config OK — TICKET MICROSOFT A OUVRIR" },
+      { op: "Migration batch mailboxes (79 boites, 348 Go)", status: "wait", detail: "Bloque par erreur pilote" },
+      { op: "Pre-migration OneDrive (incremental)", status: "wait", detail: "Script a creer" },
+      { op: "Ajout alias @timspirit.fr en SMTP principal (post-cutover)", status: "wait", detail: "Script pret" },
+      { op: "Transfert domaine timspirit.fr vers D2X", status: "wait", detail: "Jour J cutover 10/04" }
+    ],
+    difficulties: [
+      { tag: "resolved", text: "App c20aee4f avec Mailbox.Migration — admin consent OK sur les 2 tenants" },
+      { tag: "resolved", text: "OrgRelationship source RemoteOutbound + cible RemoteInbound — OK" },
+      { tag: "resolved", text: "Endpoint recree apres disparition — secret app valide depuis portail Entra D2X" },
+      { tag: "resolved", text: "ExchangeGuid stampe sur MailUser cible — OK" },
+      { tag: "resolved", text: "79/79 licences CTMM assignees — service plans en Success" },
+      { tag: "resolved", text: "79 users dans le scope CrossTenantMigration_Scope cote TS" },
+      { tag: "resolved", text: "Licences Exchange retirees — users restent MailUser (requis par CTMM)" },
+      { tag: "resolved", text: "Roles Exchange ajoutes au ServicePrincipal source : Migration, EWS, Full Access, Mail.ReadWrite, Mailbox Import Export" },
+      { tag: "bug", text: "Test-OAuthConnectivity cote source : Error — HTTP forbidden Anonymous — malgre tous les roles" },
+      { tag: "blocked", text: "InboundMailboxMoveCapabilityMissingException apres 2-10 min de Syncing — 13 tentatives — TICKET MICROSOFT" },
+      { tag: "info", text: "Fichier TICKET-MICROSOFT-EXCHANGE-CTMM.md pret pour ouverture ticket support" },
+      { tag: "info", text: "Alias SMTP : impossible avant cutover domaine (timspirit.fr encore dans tenant TS)" }
+    ],
+    notes: "<strong>BLOQUE</strong> : 13 pilotes echoues avec InboundMailboxMoveCapabilityMissing malgre toute la config OK. Test-OAuthConnectivity echoue cote source. <strong>Ticket Microsoft a ouvrir en urgence (severite B)</strong>. Fichier TICKET-MICROSOFT-EXCHANGE-CTMM.md pret. Licences Exchange a reassigner APRES resolution + migration.",
+    scripts: [
+      { name: "Test-Pilote-Exchange.ps1", desc: "PS7-D2X — Test pilote CTMM avec prereqs + monitoring" },
+      { name: "Launch-Exchange-Batch-79.ps1", desc: "PS7-D2X — Batch complet 79 boites (pret a lancer)" },
+      { name: "Remove-Licences-Exchange-D2X.ps1", desc: "PS7-D2X — Retire les licences Exchange avant CTMM" },
+      { name: "Check-Exchange-Migration.ps1", desc: "PS7-D2X — Etat des batches et users migration" },
+      { name: "TICKET-MICROSOFT-EXCHANGE-CTMM.md", desc: "Resume complet pour ticket support Microsoft" },
+      { name: "Add-Alias-PostCutover.ps1", desc: "PS7-D2X — Ajout alias @timspirit.fr post-cutover" },
+      { name: "Mapping-Licences-TS-D2X.csv", desc: "Mapping licences SPB/STANDARDPACK pour reassignation post-migration" }
+    ]
+  },
+  {
+    id: 5, title: "Migration SharePoint partages", pct: 35, status: "inprogress",
+    ops: [
+      { op: "Migration test site Excellence (869 fichiers)", status: "ok", detail: "800 OK + 68 Skip + 1 KO (mp4 timeout) — 41 min" },
+      { op: "Fix bug Split-Path (/ → \\ sur Windows)", status: "ok", detail: "Pre-phase + Phase 1 + Phase 2 corriges" },
+      { op: "Skip incrementiel (fichiers deja presents)", status: "ok", detail: "68 fichiers skippes au 2e run — valide" },
+      { op: "MemoryStream (RAM, zero disque)", status: "ok", detail: "Get-PnPFile -AsMemoryStream + Add-PnPFile -Stream" },
+      { op: "Scan volumetrie 104 sites", status: "run", detail: "Script lance — Scan-Sites-Tailles.ps1" },
+      { op: "Deblocage auth app-only D2X pour parallele", status: "ok", detail: "DisableCustomAppAuth=False — propagation confirmee 08/04" },
+      { op: "Migration parallele (4-6 threads par bibliotheque)", status: "wait", detail: "Auth app-only OK — en attente liste sites definitive du client" },
+      { op: "Nettoyage fichiers mal places (Documents/sites/...)", status: "wait", detail: "1er run avait mis les fichiers au mauvais chemin" },
+      { op: "Mapping complet sites source → cible D2X", status: "ok", detail: "Migration-Sites-D2X-FINAL.csv — 74 lignes (36 Teams + 2 SP + 36 dossiers)" },
+      { op: "Creation 44 sites D2X (35 Teams + 2 SP + 7 parents)", status: "ok", detail: "43 crees + 1 existant — 09/04 17h" },
+      { op: "Creation 36 sous-dossiers dans sites D2X", status: "wait", detail: "Create-Folders-D2X.ps1 pret — apres droits" },
+      { op: "Assignation droits SP depuis export TS", status: "run", detail: "Mapping users en cours — Assign-Permissions-D2X.ps1 pret" },
+      { op: "Migration batch des 74 sites", status: "run", detail: "Lance 09/04 — incremental MemoryStream — tourne cette nuit" }
+    ],
+    difficulties: [
+      { tag: "bug", text: "Split-Path sur Windows convertit / en \\ → regex ^/sites/... ne match plus → relDir contient le chemin complet" },
+      { tag: "resolved", text: "Fix : remplacer Split-Path par string op ($fileUrl -replace '^/sites/[^/]+/[^/]+', '')" },
+      { tag: "bug", text: "1er run a copie les fichiers au mauvais chemin : Documents/sites/Equipe-.../Documents/fichier au lieu de Documents/fichier" },
+      { tag: "workaround", text: "2e run avec fix depose les fichiers au bon endroit — nettoyage de l'arbre errone a faire" },
+      { tag: "bug", text: "Add-PnPFile cert → 'Acces refuse' (app-only write bloque)" },
+      { tag: "resolved", text: "Cause : DisableCustomAppAuthentication=True sur tenant D2X → passe a False le 03/04" },
+      { tag: "resolved", text: "Propagation DisableCustomAppAuth confirmee 08/04 — ecriture app-only OK" },
+      { tag: "bug", text: "Grant-PnPAzureADAppSitePermission : FullControl accorde via Graph mais n'affecte pas CSOM" },
+      { tag: "bug", text: "Add-PnPSiteCollectionAdmin : tous les formats de loginName → 'utilisateur introuvable'" },
+      { tag: "info", text: "L'app est deja SCA sous i:0i.t|00000003-...|app@sharepoint mais ca ne suffit pas pour ecrire" },
+      { tag: "bug", text: "iQ7-DevOps-ITSM.mp4 timeout 100s (HttpClient default) — fichier trop lourd" },
+      { tag: "workaround", text: "Copie manuelle via Get-PnPFile -AsFile sur disque puis Add-PnPFile pour les gros fichiers" },
+      { tag: "info", text: "Debit observe : ~10 Mo/s sequentiel | Estimation 2 To : ~56h seq / ~14h x4 / ~9h x6" }
+    ],
+    notes: "<strong>74 sites mappes</strong> dans Migration-Sites-D2X-FINAL.csv. 44 sites a creer sur D2X (en attente validation client). <strong>Create-Folders-D2X.ps1 pret</strong> pour les 36 sous-dossiers. Auth app-only OK. Exclusions : Strategie 2030 et Accostage D2X → migres dans CODIR.",
+    scripts: [
+      { name: "Migration-Test-Sites.ps1", desc: "Indifferent — Migration sequentielle MemoryStream + skip incremental" },
+      { name: "Migration-Sites-Parallel.ps1", desc: "PS7 — Version parallele (4-6 threads)" },
+      { name: "Create-Folders-D2X.ps1", desc: "PS7-D2X — Creation des 36 sous-dossiers dans sites existants" },
+      { name: "Diag-Cert-D2X.ps1", desc: "PS7-D2X — Diagnostic 5 etapes cert/read/write/SCA" },
+      { name: "Scan-Sites-Tailles.ps1", desc: "PS7-TS — Scan volumetrie des sites" },
+      { name: "Migration-Sites-D2X-FINAL.csv", desc: "Mapping complet 74 sites source → chemin cible D2X" },
+      { name: "Sites-A-Creer-D2X-FINAL.csv", desc: "Liste des 44 sites a creer sur D2X" }
+    ]
+  },
+  {
+    id: 6, title: "Re-enrolement Intune TS → D2X", pct: 0, status: "todo",
+    ops: [
+      { op: "Desenrolement Intune TS (Retire, pas Wipe)", status: "wait", detail: "SimulationMode=true par defaut" },
+      { op: "Enrolement Intune D2X", status: "wait", detail: "Apres phase 3 (comptes D2X crees)" },
+      { op: "Verification compliance policies D2X", status: "wait", detail: "A configurer" }
+    ],
+    difficulties: [
+      { tag: "info", text: "Retire (pas Wipe) : preserve les donnees utilisateur, supprime les profils MDM" },
+      { tag: "info", text: "Async : les devices se desenregistrent au prochain sync Intune (~24h)" }
+    ],
+    notes: "120 postes concernes. Le script <code>Intune-Desenrollement-TS.ps1</code> est en mode simulation par defaut. Depend de la phase 3 (comptes D2X).",
+    scripts: [
+      { name: "Intune-Desenrollement-TS.ps1", desc: "PS7-TS — Desenrolement Intune (SimulationMode)" }
+    ]
+  },
+  {
+    id: 7, title: "Applications SSO / Azure AD", pct: 0, status: "todo",
+    ops: [
+      { op: "Inventaire apps SSO TS", status: "wait", detail: "A faire" },
+      { op: "Recreation app registrations D2X", status: "wait", detail: "A faire" },
+      { op: "Reconfiguration SSO / SAML / OIDC", status: "wait", detail: "A faire" }
+    ],
+    difficulties: [],
+    notes: "Non bloquant — demarrable des la phase 3. Faible priorite pour le cutover du 10/04.",
+    scripts: []
+  }
+];
+
+function statusBadge(s) {
+  const m = { ok:'st-ok', run:'st-run', ko:'st-ko', wait:'st-wait', skip:'st-skip' };
+  const l = { ok:'OK', run:'En cours', ko:'KO', wait:'A faire', skip:'Skip' };
+  return `<span class="st ${m[s]||'st-wait'}">${l[s]||s}</span>`;
+}
+
+function diffTag(d) {
+  const m = { bug:'diff-bug', workaround:'diff-workaround', resolved:'diff-resolved', info:'diff-info', blocked:'diff-blocked' };
+  const icons = { bug:'\u274C', workaround:'\u26A0\uFE0F', resolved:'\u2705', info:'\u2139\uFE0F', blocked:'\uD83D\uDED1' };
+  return `<span class="diff ${m[d.tag]||'diff-info'}">${icons[d.tag]||''} ${d.text}</span>`;
+}
+
+function barColor(pct, status) {
+  if (status === 'done' || pct === 100) return 'green';
+  if (status === 'blocked' || status === 'ko') return 'red';
+  return pct > 0 ? 'orange' : 'red';
+}
+
+function render() {
+  const el = document.getElementById('phases');
+  let html = '';
+  PHASES.forEach((p, i) => {
+    const col = barColor(p.pct, p.status);
+    const numClass = p.pct === 100 ? 'done' : (p.status === 'blocked' ? 'blocked' : (p.pct > 0 ? 'inprogress' : 'todo'));
+    html += `<div class="phase${i<5?' open':''}" onclick="this.classList.toggle('open')">
+      <div class="phase-head">
+        <div class="phase-num ${numClass}">${p.id}</div>
+        <div class="phase-title">${p.title}</div>
+        <div class="phase-pct ${col}">${p.pct}%</div>
+        <div class="phase-arrow">\u25B6</div>
+      </div>
+      <div class="pbar-bg"><div class="pbar-fill ${col}" style="width:${p.pct}%"></div></div>
+      <div class="phase-body">
+        <table class="ops-table">
+          <tr><th>Operation</th><th>Statut</th><th>Detail</th></tr>
+          ${p.ops.map(o => `<tr><td>${o.op}</td><td>${statusBadge(o.status)}</td><td>${o.detail}</td></tr>`).join('')}
+        </table>
+        ${p.difficulties.length ? '<div style="margin-top:10px;font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:0.05em;">Difficultés & résolutions</div><div style="margin-top:4px;line-height:2;">' + p.difficulties.map(d => diffTag(d)).join('<br>') + '</div>' : ''}
+        ${p.notes ? '<div class="note">' + p.notes + '</div>' : ''}
+        ${p.scripts.length ? '<div class="scripts"><div style="font-size:10px;color:#8b949e;text-transform:uppercase;letter-spacing:0.05em;margin-top:8px;">Scripts</div>' + p.scripts.map(s => `<div class="script-item"><span class="icon">\uD83D\uDCC4</span><span class="name">${s.name}</span><span class="desc">— ${s.desc}</span></div>`).join('') + '</div>' : ''}
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+  document.getElementById('ts').textContent = 'Genere le ' + new Date().toLocaleDateString('fr-FR') + ' a ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+}
+
+render();
+</script>
+</body>
+</html>
