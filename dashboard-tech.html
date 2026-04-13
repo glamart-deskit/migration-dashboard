@@ -95,7 +95,7 @@
 <div class="kpi-bar">
   <div class="kpi"><div class="kpi-label">Sites SP</div><div class="kpi-val">74</div><div class="kpi-sub">a migrer (36 Teams + 2 SP + 36 dossiers)</div></div>
   <div class="kpi"><div class="kpi-label">Comptes D2X</div><div class="kpi-val green">Crees</div><div class="kpi-sub">Pierre — comptes prenom.nom@oned2x.com OK</div></div>
-  <div class="kpi"><div class="kpi-label">Exchange</div><div class="kpi-val orange">~348 Go</div><div class="kpi-sub">85 boites — CTMM prets, licence en propagation</div></div>
+  <div class="kpi"><div class="kpi-label">SP Migration</div><div class="kpi-val green">99%</div><div class="kpi-sub">73/74 sites — Missions a 98%</div></div>
   <div class="kpi"><div class="kpi-label">Stockage D2X</div><div class="kpi-val green">4,28 To</div><div class="kpi-sub">780 Go utilises / 2,28 To actuel + 2 To commandes (08/04)</div></div>
   <div class="kpi"><div class="kpi-label">Sites D2X</div><div class="kpi-val green">43/44</div><div class="kpi-sub">crees (1 existait deja) — 09/04 17h</div></div>
   <div class="kpi"><div class="kpi-label">Auth App-Only</div><div class="kpi-val green">OK</div><div class="kpi-sub">DisableCustomAppAuth=False — propagation confirmee 08/04</div></div>
@@ -212,7 +212,7 @@ const PHASES = [
     ]
   },
   {
-    id: 5, title: "Migration SharePoint partages", pct: 35, status: "inprogress",
+    id: 5, title: "Migration SharePoint partages", pct: 95, status: "inprogress",
     ops: [
       { op: "Migration test site Excellence (869 fichiers)", status: "ok", detail: "800 OK + 68 Skip + 1 KO (mp4 timeout) — 41 min" },
       { op: "Fix bug Split-Path (/ → \\ sur Windows)", status: "ok", detail: "Pre-phase + Phase 1 + Phase 2 corriges" },
@@ -226,7 +226,7 @@ const PHASES = [
       { op: "Creation 44 sites D2X (35 Teams + 2 SP + 7 parents)", status: "ok", detail: "43 crees + 1 existant — 09/04 17h" },
       { op: "Creation 36 sous-dossiers dans sites D2X", status: "wait", detail: "Create-Folders-D2X.ps1 pret — apres droits" },
       { op: "Assignation droits SP depuis export TS", status: "run", detail: "Mapping users en cours — Assign-Permissions-D2X.ps1 pret" },
-      { op: "Migration batch des 74 sites", status: "run", detail: "Lance 09/04 — incremental MemoryStream — tourne cette nuit" }
+      { op: "Migration batch des 74 sites", status: "run", detail: "73/74 sites termines — Missions a 98% (~2400 fichiers restants)" }
     ],
     difficulties: [
       { tag: "bug", text: "Split-Path sur Windows convertit / en \\ → regex ^/sites/... ne match plus → relDir contient le chemin complet" },
